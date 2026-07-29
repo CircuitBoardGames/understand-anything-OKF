@@ -246,6 +246,15 @@ Perform lightweight validation (no graph-reviewer agent):
 
    The most common failure mode here: writing only the freshly-computed batch entries to `fingerprints.json`, discarding every other file's fingerprint. The next auto-update then sees all those files as new (no stored fingerprint), classifies them as STRUCTURAL, and escalates to FULL_UPDATE permanently (issue #152). The script must LOAD ALL existing entries, PATCH only the re-analyzed ones, and SAVE the full dict back.
 
+   **Patch `store.files`, not the store.** `fingerprints.json` is a `FingerprintStore`
+   (`packages/core/src/fingerprint.ts`) — `{ version, gitCommitHash, generatedAt, files }` — and
+   `analyzeChanges()` reads `existingStore.files[filePath]`. Writing `store[filePath]` puts entries
+   one level too high, where nothing reads them, and makes `Object.keys(store).length` report 4 for
+   a perfectly healthy store. That miscount is worse than the missing data: a maintainer seeing "4
+   entries" diagnoses the issue-#152 clobber, "repairs" the store by adding more top-level keys, and
+   the next real update silently drops them again when it writes the typed shape — a loop that can
+   repeat indefinitely while `files` was correct the whole time.
+
    Write and execute a Node.js script in this exact ordering:
 
    ```javascript
@@ -257,11 +266,13 @@ Perform lightweight validation (no graph-reviewer agent):
    const fpPath = path.join(PROJECT_ROOT, UA_DIR, 'fingerprints.json');
    const existedAndNonEmpty = existsSync(fpPath) && readFileSync(fpPath, 'utf-8').trim().length > 0;
 
-   // 1. LOAD ALL existing entries (NEVER skip — preserves un-analyzed files)
-   const all = existedAndNonEmpty
+   // 1. LOAD the whole store (NEVER skip — preserves un-analyzed files). The per-file
+   //    fingerprints live under `.files`; the sibling keys are store metadata.
+   const store = existedAndNonEmpty
      ? JSON.parse(readFileSync(fpPath, 'utf-8'))
-     : {};
-   const before = Object.keys(all).length;
+     : { version: '1.0.0', gitCommitHash: '', generatedAt: '', files: {} };
+   if (!store.files || typeof store.files !== 'object') store.files = {};
+   const before = Object.keys(store.files).length;
 
    // 2. PATCH (file still exists) or REMOVE (file deleted) for each re-analyzed path.
    //    `filesToReanalyze` may include paths that were deleted in this commit —
@@ -269,28 +280,41 @@ Perform lightweight validation (no graph-reviewer agent):
    for (const filePath of filesToReanalyze) {
      const fullPath = path.join(PROJECT_ROOT, filePath);
      if (!existsSync(fullPath)) {
-       delete all[filePath];
+       delete store.files[filePath];
        continue;
      }
      const content = readFileSync(fullPath, 'utf-8');
      const contentHash = createHash('sha256').update(content).digest('hex');
      // Extract functions, classes, imports, exports via the same regex as Phase 1.
-     all[filePath] = { contentHash, functions, classes, imports, exports };
+     store.files[filePath] = { contentHash, functions, classes, imports, exports };
    }
 
    // 3. GUARD against silent load failure: if fingerprints.json existed and was
    //    non-empty but `before` came out as 0, refuse to overwrite — something
    //    went wrong reading the file and writing now would clobber every entry.
    if (existedAndNonEmpty && before === 0) {
-     throw new Error('fingerprints.json existed and was non-empty but loaded as {} — refusing to overwrite');
+     throw new Error('fingerprints.json existed and was non-empty but loaded with no files — refusing to overwrite');
    }
 
-   // 4. SAVE ALL entries back (full dict — not just the patched subset)
-   writeFileSync(fpPath, JSON.stringify(all, null, 2));
-   console.log(`Fingerprints: ${before} → ${Object.keys(all).length}`);
+   // 3b. GUARD against writing to the wrong nesting level. Any top-level key that is not
+   //     store metadata is a path written by an older/hand-rolled patcher; nothing reads it.
+   const strays = Object.keys(store).filter(k => !['version', 'gitCommitHash', 'generatedAt', 'files'].includes(k));
+   for (const k of strays) delete store[k];
+   if (strays.length) console.warn(`Dropped ${strays.length} stray top-level key(s) written outside .files`);
+
+   store.gitCommitHash = CURRENT_COMMIT;      // the commit this analysis speaks for
+   store.generatedAt = new Date().toISOString();
+
+   // 4. SAVE the whole store back (full file map — not just the patched subset)
+   writeFileSync(fpPath, JSON.stringify(store, null, 2));
+   console.log(`Fingerprints: ${before} → ${Object.keys(store.files).length} file(s)`);
    ```
 
    The `existedAndNonEmpty && before === 0` guard catches the silent-load-failure case before it corrupts the store. If the count shrinks from N to a small number that matches the batch size, the LOAD step was skipped — abort the write rather than persist the wrong dict.
+
+   When inspecting the store by hand, count `store.files`, never the top-level object:
+   `jq '.files | length' .understand-anything/fingerprints.json`. A top-level count of 4 is the
+   healthy shape (the four `FingerprintStore` keys), not a clobbered one.
 
 4. Clean up intermediate files:
    ```bash
