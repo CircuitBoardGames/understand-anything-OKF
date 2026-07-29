@@ -21,29 +21,20 @@
  * Mirrors the @understand-anything/core resolution dance used by
  * scan-project.mjs: workspace-linked package first, plugin-cache dist fallback.
  *
- * Plugin root resolution: prefer $PLUGIN_ROOT from the environment (set by
- * SKILL.md Phase 0 via its multi-candidate search) over the
- * `resolve(__dirname, '../..')` heuristic. The relative path breaks when
- * `skills/understand/` is copied into a runtime skills directory whose
- * parent is not the plugin checkout.
+ * Plugin root resolution: see ./plugin-root.mjs — $PLUGIN_ROOT first, then checked candidates,
+ * never a bare `resolve(__dirname, '../..')` (which resolves to the wrong directory, silently,
+ * when `skills/understand/` has been copied out of the plugin checkout).
  */
 
 import { createRequire } from 'node:module';
+import { resolvePluginRoot } from './plugin-root.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function resolvePluginRoot() {
-  const envRoot = process.env.PLUGIN_ROOT;
-  if (envRoot && existsSync(join(envRoot, 'package.json'))) {
-    return envRoot;
-  }
-  return resolve(__dirname, '../..');
-}
-
-const pluginRoot = resolvePluginRoot();
+const pluginRoot = resolvePluginRoot(__dirname);
 const require = createRequire(resolve(pluginRoot, 'package.json'));
 
 let core;
