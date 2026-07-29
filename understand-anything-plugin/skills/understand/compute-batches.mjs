@@ -28,6 +28,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { resolvePluginRoot } from './plugin-root.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -41,7 +42,7 @@ import { createRequire } from 'node:module';
 const IO_PARALLELISM = 64;
 
 const __filename = fileURLToPath(import.meta.url);
-const PLUGIN_ROOT = resolve(dirname(__filename), '../..');
+const PLUGIN_ROOT = resolvePluginRoot(dirname(__filename));
 const require = createRequire(resolve(PLUGIN_ROOT, 'package.json'));
 
 let core;

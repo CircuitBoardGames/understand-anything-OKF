@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,6 +53,24 @@ describe('resolvePluginRoot', () => {
     writeFileSync(join(bogus, 'package.json'), JSON.stringify({ name: 'not-the-plugin' }));
     process.env.PLUGIN_ROOT = bogus;
     expect(resolvePluginRoot(SKILL_DIR)).toBe(PLUGIN);
+  });
+
+  // Class guard, not a one-off. compute-batches.mjs carried the identical defect spelled
+  // `resolve(dirname(__filename), '../..')` and was missed by a grep for `__dirname` — so
+  // assert on the OUTCOME (every root-resolver goes through resolvePluginRoot) rather than
+  // on one spelling of the bug. Any new script reintroducing the guess fails here.
+  it('leaves no script in skills/understand resolving the plugin root by a relative guess', () => {
+    const offenders = [];
+    for (const name of readdirSync(SKILL_DIR).filter(f => f.endsWith('.mjs'))) {
+      if (name === 'plugin-root.mjs') continue;          // owns the fallback candidate itself
+      const src = readFileSync(join(SKILL_DIR, name), 'utf-8');
+      // Strip block/line comments so prose about the bug doesn't read as the bug.
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      if (!/createRequire/.test(code)) continue;          // only scripts that need a plugin root
+      const guesses = code.match(/resolve\([^;]*?['"]\.\.\/\.\.['"]\s*\)/g) || [];
+      if (guesses.length) offenders.push(`${name}: ${guesses.join(', ')}`);
+    }
+    expect(offenders).toEqual([]);
   });
 
   it('walks up to the checkout when the skill dir is nested deeper than expected', () => {
