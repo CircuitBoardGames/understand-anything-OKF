@@ -58,6 +58,7 @@
  */
 
 import { createRequire } from 'node:module';
+import { resolvePluginRoot } from './plugin-root.mjs';
 import { createHash } from 'node:crypto';
 import { dirname, resolve, join, basename, extname, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -73,8 +74,7 @@ import {
 import { spawnSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// skills/understand/ -> plugin root is two dirs up
-const pluginRoot = resolve(__dirname, '../..');
+const pluginRoot = resolvePluginRoot(__dirname);
 const require = createRequire(resolve(pluginRoot, 'package.json'));
 
 // ---------------------------------------------------------------------------
