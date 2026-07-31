@@ -805,6 +805,29 @@ Report to the user: `[Phase 7/7] Saving knowledge graph...`
 
 ---
 
+## Phase 8 — EXPORT (optional)
+
+`knowledge-graph.json` is readable by this plugin's dashboard and by an agent holding the file.
+Export it to [Open Knowledge Format](https://github.com/scaccogatto/okf-skills) v0.1 when the graph
+should be readable **without** either — reviewable in a diff, browsable in an editor, or consumable
+by any OKF-aware tool:
+
+```bash
+node "$PLUGIN_ROOT/skills/understand/export-okf.mjs" --graph "$UA_DIR/knowledge-graph.json" --out "$UA_DIR/okf"
+```
+
+One Markdown file per node, foldered by layer, with the node's `type` as the OKF `type` — the
+format's one hard conformance rule (§9). Reserved `index.md` files list each directory; the tour
+becomes `tour.md`. The export is **deterministic**: nodes are emitted in sorted order and the only
+timestamp written is the graph's own `project.analyzedAt`, so re-exporting an unchanged graph
+produces byte-identical output and any diff means the graph moved.
+
+It refuses to write into a non-empty directory that is not already a bundle (no `index.md`); pass
+`--force` to override. Verify a bundle with
+`uv run okf_validate.py "$UA_DIR/okf" --strict` from the `validate` skill.
+
+---
+
 ## Error Handling
 
 - If any subagent dispatch fails, retry **once** with the same prompt plus additional context about the failure.
