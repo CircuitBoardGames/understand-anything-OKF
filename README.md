@@ -1,3 +1,20 @@
+> **Abstract.** `understand-anything-OKF` is [CircuitBoardGames](https://github.com/CircuitBoardGames)'
+> fork of [Egonex-AI/Understand-Anything](https://github.com/Egonex-AI/Understand-Anything) that
+> exports an analysed knowledge graph as an
+> [Open Knowledge Format v0.1](https://github.com/scaccogatto/okf-skills) bundle — one Markdown
+> file per node, foldered by architectural layer, each carrying the node's `type` in YAML
+> frontmatter (the format's one hard rule) — so a graph is readable in a diff, in an editor, and by
+> any OKF-aware tool, not only by this plugin's dashboard. Three portability fixes travel with it:
+> the `skills/understand/*.mjs` scripts resolve the plugin root by **checked candidates** rather
+> than a relative guess, so a copied-out or vendored copy of a skill works and an unresolvable root
+> throws naming every candidate instead of silently resolving to the wrong directory; the
+> dashboard's Vite bind address and allowed hosts are configurable (`UNDERSTAND_HOST`,
+> `UNDERSTAND_ALLOWED_HOSTS`) for serving from a remote VM behind a domain (upstream #485); and the
+> auto-update hook patches fingerprints under `.files`, where `analyzeChanges()` actually reads
+> them. All upstream functionality is unchanged and every default is unchanged — the export is
+> opt-in and the dashboard still binds to `127.0.0.1` unless told otherwise. See
+> [OKF export](#okf-export) below.
+
 <h1 align="center">Understand Anything</h1>
 
 <p align="center">
@@ -310,6 +327,37 @@ npx https://github.com/Egonex-AI/Understand-Anything/releases/latest/download/un
 The terminal prints a tokenized URL (`http://127.0.0.1:5173/?token=…`) and opens the full interactive dashboard in your browser. The project directory (default: current directory) must contain the committed data directory (`.ua/`, or legacy `.understand-anything/`). Everything is served read-only from local disk — no LLM calls, no data leaves your machine.
 
 Working from a clone instead? `pnpm install && pnpm --filter @understand-anything/core build`, then `GRAPH_DIR=/path/to/analyzed/project pnpm dev:dashboard` does the same via the Vite dev server.
+
+### OKF export
+
+*(This fork.)* The dashboard above reads the graph, and so does any agent holding the JSON. Export
+to [Open Knowledge Format](https://github.com/scaccogatto/okf-skills) v0.1 when it should be
+readable without either — reviewable in a pull request, browsable in an editor, or consumable by
+any OKF-aware tool:
+
+```bash
+node skills/understand/export-okf.mjs --out .ua/okf
+```
+
+One Markdown file per node, foldered by architectural layer, each carrying the node's `type` in
+YAML frontmatter — the format's one hard conformance rule (§9). Reserved `index.md` files list
+each directory, and the guided tour becomes `tour.md`:
+
+```
+.ua/okf/
+├── index.md              # bundle root, okf_version: "0.1"
+├── tour.md               # the guided tour, as an OKF concept
+├── mcp-server/
+│   ├── index.md          # reserved: a directory listing
+│   └── server-mjs.md     # type: file, with its edges as links
+└── agent-hooks/…
+```
+
+The export is **deterministic** — nodes are emitted in sorted order and the only timestamp written
+is the graph's own `project.analyzedAt` — so re-exporting an unchanged graph produces byte-identical
+output and any diff means the graph moved. It refuses to write into a non-empty directory that is
+not already a bundle; pass `--force` to override. Verify with the `validate` skill:
+`uv run okf_validate.py .ua/okf --strict`.
 
 ---
 
