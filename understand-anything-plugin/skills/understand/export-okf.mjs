@@ -1,6 +1,13 @@
-#!/usr/bin/env node
 /**
  * Export an analysed knowledge graph as an Open Knowledge Format (OKF) v0.1 bundle.
+ *
+ * NO SHEBANG, deliberately. This file is both a CLI and an imported module, and a `#!` line in a
+ * module that gets imported is a parse error under vitest on a CRLF checkout — Windows checks out
+ * CRLF by default, so `import`ing it dies with `SyntaxError: Invalid or unexpected token` while
+ * Linux passes. The sibling scripts keep their shebangs because they are only ever spawned;
+ * `plugin-root.mjs`, the other imported module here, has none for the same reason. Every documented
+ * invocation is `node export-okf.mjs …`, so the shebang bought nothing. `test_export_okf.test.mjs`
+ * asserts the CRLF import keeps working.
  *
  * The graph this plugin produces is JSON: rich, but readable only by this plugin's own dashboard
  * and by whatever agent is holding the file. OKF is the portable form of the same information —

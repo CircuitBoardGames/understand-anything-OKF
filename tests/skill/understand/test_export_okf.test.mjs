@@ -2,6 +2,12 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const MODULE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../understand-anything-plugin/skills/understand/export-okf.mjs',
+);
 
 import {
   buildBundle,
@@ -163,6 +169,22 @@ describe('buildBundle — structure', () => {
     const keys = [...buildBundle(graph).keys()].filter((k) => !isReserved(k));
     expect(new Set(keys).size).toBe(2);
     expect(keys).toEqual(expect.arrayContaining(['unassigned/run.md', 'unassigned/run-2.md']));
+  });
+});
+
+describe('portability', () => {
+  it('imports cleanly from a CRLF checkout', async () => {
+    // Windows checks out CRLF by default. A `#!` line in a module that is IMPORTED (rather than
+    // spawned) is a parse error under vitest once the file is CRLF — `SyntaxError: Invalid or
+    // unexpected token`, on Windows only, while Linux stays green. That is exactly how this file
+    // first failed CI. Reproduce the condition here so a re-added shebang fails on every platform.
+    const src = readFileSync(MODULE_PATH, 'utf-8');
+    expect(src.startsWith('#!')).toBe(false);
+
+    const crlf = join(tmp(), 'crlf-copy.mjs');
+    writeFileSync(crlf, src.replace(/\r?\n/g, '\r\n'));
+    const mod = await import(pathToFileURL(crlf).href);
+    expect(typeof mod.buildBundle).toBe('function');
   });
 });
 
