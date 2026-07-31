@@ -22,7 +22,7 @@ function isPluginRoot(dir) {
   const pkg = join(dir, 'package.json');
   if (!existsSync(pkg)) return false;
   try {
-    const { name, workspaces } = JSON.parse(readFileSync(pkg, 'utf-8'));
+    const { name } = JSON.parse(readFileSync(pkg, 'utf-8'));
     // The plugin root is the workspace root that owns @understand-anything/*.
     return name === 'understand-anything' || name?.startsWith('@understand-anything/') ||
            existsSync(join(dir, 'packages', 'core'));

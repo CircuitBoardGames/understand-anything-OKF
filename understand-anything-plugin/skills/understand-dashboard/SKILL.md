@@ -182,7 +182,8 @@ domain name with `Blocked request. This host ("example.com") is not allowed.` (#
 dashboard from a remote machine reached via a domain or public IP, set these before launching Vite:
 
 ```bash
-GRAPH_DIR=<project-dir> \
+PROJECT_DIR=$(pwd -P)
+GRAPH_DIR="$PROJECT_DIR" \
 UNDERSTAND_HOST=0.0.0.0 \
 UNDERSTAND_ALLOWED_HOSTS=example.com,example1.com \
 npx vite
