@@ -30,8 +30,9 @@
  * Defaults: the graph is looked up in `.understand-anything/` then `.ua/` under the cwd, and the
  * bundle is written to `<that dir>/okf`.
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Bundle-internal paths are VIRTUAL — they are keys in the emitted bundle and targets of Markdown
 // links, not paths on this machine. They therefore use `posix` on every host: `path.relative` on
@@ -309,7 +310,30 @@ function main(argv) {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * Was this module executed, or imported?
+ *
+ * `import.meta.url === \`file://${process.argv[1]}\`` is the usual idiom and it is WRONG through a
+ * symlink: Node resolves symlinks for `import.meta.url` but leaves `process.argv[1]` as the path
+ * the user typed, so the two never match and the CLI becomes a silent no-op — exit 0, no output,
+ * nothing written. That is exactly how this script is reached when a host repo symlinks it into its
+ * own skills directory, which is the documented way to consume it.
+ *
+ * Resolving argv[1] through `realpathSync` and comparing file URLs fixes the symlink case and the
+ * relative-path case at once (`node ./export-okf.mjs`), and `pathToFileURL` handles the spaces and
+ * non-ASCII characters that string-concatenating `file://` also got wrong.
+ */
+function isMainModule() {
+  const invoked = process.argv[1];
+  if (!invoked) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(invoked)).href;
+  } catch {
+    return false; // argv[1] is not a real path (e.g. `node --eval`) — not us.
+  }
+}
+
+if (isMainModule()) {
   try {
     process.exit(main(process.argv.slice(2)));
   } catch (error) {
