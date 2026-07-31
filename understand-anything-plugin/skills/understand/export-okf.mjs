@@ -31,7 +31,12 @@
  * bundle is written to `<that dir>/okf`.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
+
+// Bundle-internal paths are VIRTUAL — they are keys in the emitted bundle and targets of Markdown
+// links, not paths on this machine. They therefore use `posix` on every host: `path.relative` on
+// Windows returns `..\\foo.md`, which would put backslashes inside the links of an artifact meant
+// to be portable and read anywhere. Only writeBundle converts a virtual path to a real one.
 
 const UA_DIR_CANDIDATES = ['.understand-anything', '.ua'];
 const GRAPH_FILENAME = 'knowledge-graph.json';
@@ -136,7 +141,7 @@ function conceptBody(node, paths, edges, selfPath) {
     // A dangling edge is rendered as plain text rather than a broken link: §5.3 requires
     // consumers to tolerate unresolvable links, but there is no reason to write one.
     const label = target
-      ? `[${target.title}](${relative(dirname(selfPath), target.path) || target.path})`
+      ? `[${target.title}](${posix.relative(posix.dirname(selfPath), target.path) || target.path})`
       : `\`${edge.other}\``;
     const heading = edge.direction === 'out' ? edge.type : `${edge.type} (inbound)`;
     if (!grouped.has(heading)) grouped.set(heading, new Set());

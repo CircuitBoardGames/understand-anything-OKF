@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, posix, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const MODULE_PATH = resolve(
@@ -133,14 +133,21 @@ describe('buildBundle — structure', () => {
     // concept names must resolve inside the bundle. A dangling edge is rendered as plain text.
     const files = buildBundle(GRAPH);
     const missing = [];
+    const windowsSeparators = [];
     for (const [rel, contents] of files) {
       for (const [, target] of contents.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
         if (/^[a-z]+:\/\//.test(target)) continue; // external URL
-        const resolved = resolve('/', dirname(rel), target).slice(1);
+        // Bundle paths are virtual, so resolve them with `posix` on every host. Using the
+        // platform `path` here made this assertion pass on Linux and fail on Windows — where
+        // the emitted links really were broken, because the exporter had the same bug.
+        if (target.includes('\\')) windowsSeparators.push(`${rel} → ${target}`);
+        const resolved = posix.normalize(posix.join(posix.dirname(rel), target));
         if (!files.has(resolved)) missing.push(`${rel} → ${target}`);
       }
     }
     expect(missing).toEqual([]);
+    // A Markdown link with a backslash is broken everywhere, so this must hold on every host.
+    expect(windowsSeparators).toEqual([]);
   });
 
   it('renders an edge to a node outside the graph without a broken link', () => {
