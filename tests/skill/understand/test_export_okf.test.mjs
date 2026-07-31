@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, posix, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const MODULE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -192,6 +193,47 @@ describe('portability', () => {
     writeFileSync(crlf, src.replace(/\r?\n/g, '\r\n'));
     const mod = await import(pathToFileURL(crlf).href);
     expect(typeof mod.buildBundle).toBe('function');
+  });
+});
+
+describe('CLI entry point', () => {
+  function runCli(scriptPath, outDir) {
+    const graphPath = join(dirname(outDir), 'graph.json');
+    writeFileSync(graphPath, JSON.stringify(GRAPH));
+    return spawnSync(process.execPath, [scriptPath, '--graph', graphPath, '--out', outDir], {
+      encoding: 'utf-8',
+    });
+  }
+
+  it('runs when invoked directly', () => {
+    const out = join(tmp(), 'okf');
+    const r = runCli(MODULE_PATH, out);
+    expect(r.status).toBe(0);
+    expect(existsSync(join(out, 'index.md'))).toBe(true);
+  });
+
+  it('runs when invoked THROUGH A SYMLINK', (ctx) => {
+    // The gap that shipped: a host repo symlinks this script into its own skills directory, which
+    // is the documented way to consume it. Node resolves symlinks for `import.meta.url` but not for
+    // `process.argv[1]`, so the old main-check never matched and the CLI became a SILENT no-op —
+    // exit 0, no output, nothing written. Every earlier test and the end-to-end smoke run used the
+    // real path, so none of them could see it.
+    const dir = tmp();
+    const link = join(dir, 'linked-export.mjs');
+    try {
+      symlinkSync(MODULE_PATH, link);
+    } catch {
+      // Windows refuses symlinks without developer mode or elevation. Skip LOUDLY rather than
+      // returning green: a silent pass here would hide the very failure mode this test exists for.
+      ctx.skip();
+      return;
+    }
+    const out = join(dir, 'okf');
+    const r = runCli(link, out);
+    expect(r.stderr).toBe('');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/Wrote \d+ file\(s\)/);
+    expect(existsSync(join(out, 'index.md'))).toBe(true);
   });
 });
 
