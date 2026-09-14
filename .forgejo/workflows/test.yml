@@ -1,0 +1,48 @@
+name: Test
+
+# The forge's gate for this fork. The upstream `.github/workflows/ci.yml` never ran here: its matrix
+# includes windows-latest, which no runner on this forge serves, and a present `.forgejo/workflows`
+# is what the forge reads instead of `.github/workflows` — so the upstream file stays untouched for
+# clean syncs. This is that workflow's ubuntu leg, step for step.
+#
+# Runs on the AIroborOS host runner (labels ubuntu-latest:host, user `runner`), so tools install
+# into the runner's home rather than a fresh VM.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: lint, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # No `version:` — the action reads package.json's `packageManager` pin (pnpm@10.6.2).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Build core
+        run: pnpm --filter @understand-anything/core build
+      - name: Build skill
+        run: pnpm --filter @understand-anything/skill build
+      - name: Build viewer
+        run: pnpm --filter understand-anything-viewer build
+      - name: Test core
+        run: pnpm --filter @understand-anything/core test
+      - name: Test skill
+        run: pnpm test
+      - name: Test Python skill helpers
+        run: python3 -m unittest tests.skill.understand.test_merge_batch_graphs tests.skill.understand.test_merge_subdomain_graphs tests.skill.knowledge.test_parse_knowledge_base -v
