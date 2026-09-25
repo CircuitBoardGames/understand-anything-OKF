@@ -40,12 +40,8 @@
  */
 
 import { createRequire } from 'node:module';
-<<<<<<< HEAD
 import { resolvePluginRoot } from './plugin-root.mjs';
-import { dirname, resolve, join, posix } from 'node:path';
-=======
 import { dirname, resolve, join, posix, isAbsolute } from 'node:path';
->>>>>>> upstream/main
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
