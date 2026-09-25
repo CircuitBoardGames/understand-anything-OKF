@@ -13,6 +13,7 @@
  */
 
 import { createRequire } from 'node:module';
+import { resolvePluginRoot } from './plugin-root.mjs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
@@ -25,7 +26,7 @@ import {
 import { validateIncrementalSymbols, formatSymbolReport } from './validate-incremental-symbols.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pluginRoot = resolve(__dirname, '../..');
+const pluginRoot = resolvePluginRoot(__dirname);
 const require = createRequire(resolve(pluginRoot, 'package.json'));
 
 let core;
