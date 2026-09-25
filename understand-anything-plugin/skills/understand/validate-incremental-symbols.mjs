@@ -1,7 +1,7 @@
 /** Shared merge/finalize gate. Reports evidence; never restores old graph data. */
 import { createRequire } from 'node:module';
 import { resolvePluginRoot } from './plugin-root.mjs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
