@@ -42,6 +42,19 @@ jobs:
       - name: Plugin lockfile covers packages/core
         working-directory: understand-anything-plugin
         run: pnpm install --frozen-lockfile --lockfile-only --ignore-scripts --filter './packages/core...'
+      # The consumer (Agent-Skills' bootstrap) runs exactly this on a clean copy of the plugin, under the
+      # box's pnpm 11, not the pnpm 10.6.2 pinned above. pnpm 11 turns an ignored dependency build into
+      # ERR_PNPM_IGNORED_BUILDS (exit 1), where pnpm 10 only warns: a new dependency with an install
+      # script must be listed in allowBuilds (true to build, false for never). Tracked files only, so
+      # the root install's node_modules cannot mask a missing entry.
+      - name: Plugin installs and builds core under pnpm 11 (the consumer's command)
+        run: |
+          set -eu
+          d="$(mktemp -d)"
+          git archive HEAD understand-anything-plugin | tar -x -C "$d"
+          cd "$d/understand-anything-plugin"
+          npx --yes pnpm@11.17.0 install --filter './packages/core...'
+          npx --yes pnpm@11.17.0 --filter './packages/core' build
       - name: Lint
         run: pnpm lint
       - name: Build core

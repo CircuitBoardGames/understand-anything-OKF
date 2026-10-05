@@ -3,6 +3,7 @@ packages:
 allowBuilds:
   '@tree-sitter-grammars/tree-sitter-kotlin': true
   esbuild: true
+  tree-sitter-bash: false
   tree-sitter-c: true
   tree-sitter-c-sharp: true
   tree-sitter-cpp: true
