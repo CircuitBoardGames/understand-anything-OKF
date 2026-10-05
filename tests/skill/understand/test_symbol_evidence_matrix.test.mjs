@@ -340,6 +340,25 @@ describe('scoped symbol evidence contract', () => {
     expect(state.after.symbolEvidence.coverage.gaps).toContainEqual(expect.objectContaining({scope: {kind: 'unknown'}}));
   });
 
+  it.each([
+    ['a fresh local dict', 'd = {}', 'deleted'],
+    ['a fresh local list', 'd = []', 'deleted'],
+    ['a local comprehension', 'd = {x: 1 for x in k}', 'deleted'],
+    ['globals()', 'd = globals()', 'unknown'],
+    ['vars() of a module', 'd = vars(sys.modules[__name__])', 'unknown'],
+    ['a dict rebound to globals()', 'd = {}\n    d = globals()', 'unknown'],
+  ])('a Python variable-key store into %s decides whether a deleted g() is confirmed', (_, bind, status) => {
+    const code = `import sys\ndef f(k):\n    ${bind}\n    d[k] = 1\n    return d\n`;
+    const beforeSource = `${code}\n\ndef g():\n    return 2\n`;
+    expect(classify('py', code, { beforeSource, name: 'g' }).result.missing[0].status).toBe(status);
+  });
+
+  it('a Python variable-key store into a parameter still blocks a deleted g() (control)', () => {
+    const code = 'def f(d, k):\n    d[k] = 1\n';
+    expect(classify('py', code, { beforeSource: `${code}\n\ndef g():\n    return 2\n`, name: 'g' })
+      .result.missing[0].status).toBe('unknown');
+  });
+
   it.each(['ts', 'tsx'])('distinguishes %s parameter properties from ordinary parameters and other owners', extension => {
     for (const modifier of ['public', 'protected', 'private', 'readonly', 'public readonly']) {
       for (const binding of ['run = () => {}', 'run?: () => void', 'other = () => {}']) {

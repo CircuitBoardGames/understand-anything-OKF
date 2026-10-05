@@ -16,6 +16,7 @@ export const CLASS_NODES = new Set(["class", "module", "class_declaration", "abs
   "struct_specifier", "struct_declaration", "struct_item", "enum_item", "interface_declaration"]);
 export const FUNCTION_NODES = new Set(["method", "singleton_method", "method_definition", "function_definition",
   "function_declaration", "generator_function_declaration", "generator_function", "function_item", "method_declaration", "constructor_declaration", "arrow_function", "function_expression", "lambda"]);
+const FRESH_CONTAINERS = new Set(["dictionary", "list", "set", "dictionary_comprehension", "list_comprehension", "set_comprehension"]);
 const METHODS = new Set(["method", "singleton_method", "method_definition", "method_declaration", "constructor_declaration"]);
 type Target = () => SymbolScope;
 const fixed = (value: SymbolScope): Target => () => value;
@@ -53,6 +54,8 @@ export function buildSymbolScopes(root: Node, language: string) {
     const name = identifier(node);
     if (name) return [name];
     if (["identifier", "constant", "shorthand_property_identifier_pattern"].includes(node.type)) return [null];
+    // `d[k] = v` stores into d; it does not rebind d (its `value` field is the receiver).
+    if (node.type === "subscript") return [];
     const pattern = node.childForFieldName("pattern") ?? node.childForFieldName("name")
       ?? node.childForFieldName("left") ?? node.childForFieldName("value");
     if (pattern) return targets(pattern);
@@ -153,7 +156,13 @@ export function buildSymbolScopes(root: Node, language: string) {
       value = node.childForFieldName("right");
       if (value) valueRegion = { target: assignmentTarget(node.childForFieldName("left"), scope), directValue: unwrap(value)!.id };
     } else if (["assignment", "augmented_assignment"].includes(node.type) && !isJS) {
-      for (const target of targets(node.childForFieldName("left"))) bind(scope, target, node, unknownTarget);
+      // A fresh dict/list/set held by a function-local name is never a namespace, so
+      // stores into it (`d = {}; d[k] = v`) cannot install a symbol. Parameters,
+      // globals and `globals()`/`vars()` aliases bind elsewhere or rebind, and stay unknown.
+      const right = language === "python" && node.type === "assignment" && scope.localDeclarations
+        ? unwrap(node.childForFieldName("right")) : null;
+      const target = right && FRESH_CONTAINERS.has(right.type) ? fixed({ kind: "local", id: scope.id }) : unknownTarget;
+      for (const name of targets(node.childForFieldName("left"))) bind(scope, name, node, target);
     }
     if (node.type === "global_statement") for (const part of node.namedChildren) {
       if (part.type === "identifier") bind(global, identifier(part), node, unknownTarget);
