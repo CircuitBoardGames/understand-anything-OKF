@@ -24,6 +24,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: No conflict markers
+        run: |
+          rc=0; git grep -nE '^(<<<<<<<|>>>>>>>)( |$)' || rc=$?
+          [ "$rc" -eq 1 ] || { echo "conflict markers above, or git grep failed (rc=$rc)"; exit 1; }
       # No `version:` — the action reads package.json's `packageManager` pin (pnpm@10.6.2).
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
