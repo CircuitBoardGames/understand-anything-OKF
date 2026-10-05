@@ -51,6 +51,7 @@ export function collectSymbolEvidence(root: Node, structure: StructuralAnalysis,
   const isJS = ["javascript", "typescript", "tsx"].includes(language);
   const isRuby = language === "ruby";
   const isPython = language === "python";
+  const isShell = language === "shell";
   const scopes = buildSymbolScopes(root, language);
   const coverage: SymbolEvidence["coverage"] = { profile: "structural-declarations-v1", gaps: [] };
   const classes: SymbolEvidence["classes"] = [];
@@ -180,6 +181,9 @@ export function collectSymbolEvidence(root: Node, structure: StructuralAnalysis,
         }
       };
       if (target) inspect(target);
+    }
+    if (isShell && node.type === "command" && node.childForFieldName("name")?.text === "eval") {
+      add(node, UNKNOWN_SCOPE, null, "Dynamic code or class evaluation", null);
     }
     if (isRuby && node.type === "alias" && declared?.type !== "global_variable") {
       add(node, owner, declarationName(declared), "Ruby alias declaration");

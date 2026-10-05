@@ -112,7 +112,8 @@ export function buildSymbolScopes(root: Node, language: string) {
       const declaresBinding = !METHODS.has(node.type) && !["function_expression", "generator_function", "arrow_function", "lambda"].includes(node.type);
       if (declaresBinding && nameNode) bind(enclosing, name, node, unknownTarget);
       const receiver = isJS && !METHODS.has(node.type) && node.type !== "arrow_function" ? unknownTarget : enclosing.receiver;
-      scope = makeScope(node, enclosing, "function", receiver, true);
+      // A shell function defined inside another is still global once it runs.
+      scope = makeScope(node, enclosing, "function", receiver, language !== "shell");
       if (["function_expression", "generator_function"].includes(node.type) && nameNode) bind(scope, name, node, unknownTarget);
       for (const parameter of targets(node.childForFieldName("parameters"))) bind(scope, parameter, node, unknownTarget);
     } else if (isJS && ["statement_block", "class_static_block", "for_statement", "for_in_statement", "catch_clause", "switch_statement", "with_statement"].includes(node.type)) {

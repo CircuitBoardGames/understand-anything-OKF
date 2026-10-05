@@ -359,6 +359,46 @@ describe('scoped symbol evidence contract', () => {
       .result.missing[0].status).toBe('unknown');
   });
 
+  describe('shell', () => {
+    const base = 'say() { echo "$1"; }\nfunction log { echo log; }\nsay hi\n';
+    const node = name => ({ id: `function:src/example.sh:${name}`, type: 'function', name, filePath: 'src/example.sh' });
+
+    it('an edited shell file whose functions all survive reports nothing missing', () => {
+      for (const name of ['say', 'log']) {
+        expect(classify('sh', `# comment\n${base}`, { beforeSource: base, name, newNodes: [node('say'), node('log')] })
+          .result.missing).toEqual([]);
+      }
+    });
+
+    it('a removed shell function is confirmed deleted, past ordinary commands (control)', () => {
+      expect(classify('sh', 'function log { echo log; }\nlog\n', { beforeSource: base, name: 'say' })
+        .result.missing[0].status).toBe('deleted');
+    });
+
+    it('a shell function moved inside another is still global, not deleted', () => {
+      const moved = (newNodes) => classify('sh', 'outer() { say() { :; }; }\n', { beforeSource: base, name: 'say', newNodes })
+        .result.missing;
+      expect(moved([node('outer'), node('say')])).toEqual([]);
+      // and with the graph having dropped it, the source still holds it: not a deletion
+      expect(moved([node('outer')])[0].status).toBe('still-present');
+    });
+
+    it('eval in the new source still blocks a removed shell function (control)', () => {
+      const missing = classify('sh', 'function log { echo log; }\neval "$definition"\n', { beforeSource: base, name: 'say' })
+        .result.missing[0];
+      expect(missing.status).toBe('unknown');
+      expect(missing.evidence).toContainEqual(expect.objectContaining({ reason: 'Dynamic code or class evaluation' }));
+    });
+
+    it('a shell file that does not parse still blocks (control)', () => {
+      const path = 'src/example.sh';
+      const previous = { filePath: path, nodes: [node('say')], edges: [] };
+      const result = compareFileSymbols(previous, { filePath: path, nodes: [], edges: [] },
+        parser.analyzeFileStrict(path, base), parser.analyzeFileStrict(path, 'say() { echo (\n'));
+      expect(result.missing[0].status).toBe('unknown');
+    });
+  });
+
   it.each(['ts', 'tsx'])('distinguishes %s parameter properties from ordinary parameters and other owners', extension => {
     for (const modifier of ['public', 'protected', 'private', 'readonly', 'public readonly']) {
       for (const binding of ['run = () => {}', 'run?: () => void', 'other = () => {}']) {

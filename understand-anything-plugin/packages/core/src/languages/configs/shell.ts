@@ -4,6 +4,10 @@ export const shellConfig = {
   id: "shell",
   displayName: "Shell Script",
   extensions: [".sh", ".bash", ".zsh"],
+  treeSitter: {
+    wasmPackage: "tree-sitter-bash",
+    wasmFile: "tree-sitter-bash.wasm",
+  },
   concepts: ["variables", "functions", "conditionals", "loops", "pipes", "redirection", "subshells", "exit codes"],
   filePatterns: {
     entryPoints: [],

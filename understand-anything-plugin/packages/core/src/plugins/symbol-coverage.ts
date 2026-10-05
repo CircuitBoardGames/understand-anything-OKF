@@ -14,9 +14,11 @@ const NON_DECLARATION_NAMES = new Set(["export_specifier", "import_specifier", "
   "type_predicate", "mapped_type_clause", "required_parameter", "optional_parameter", "default_parameter",
   "typed_default_parameter", "parameter_declaration", "keyword_argument", "keyword_parameter", "block_parameter",
   "hash_splat_parameter", "splat_parameter", "scope_resolution", "variable_reference_pattern", "as_pattern",
-  "enum_assignment", "enum_body"]);
+  "enum_assignment", "enum_body",
+  // Shell: a command's name, an array subscript and a variable assignment declare no callable.
+  "command", "subscript", "variable_assignment"]);
 const OPAQUE_DECLARATIONS = new Set(["macro_invocation", "preproc_call", "preproc_function_def"]);
-export const COVERAGE_LANGUAGES = new Set(["javascript", "typescript", "tsx", "ruby", "python", "go", "rust", "cpp"]);
+export const COVERAGE_LANGUAGES = new Set(["javascript", "typescript", "tsx", "ruby", "python", "go", "rust", "cpp", "shell"]);
 
 export function declarationGap(node: Node, scope: SymbolScope, receiver: SymbolScope): SymbolEvidenceEntry | null {
   const range: [number, number] = [node.startPosition.row + 1, node.endPosition.row + 1];

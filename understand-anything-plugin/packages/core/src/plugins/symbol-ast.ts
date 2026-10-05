@@ -19,7 +19,7 @@ export function literal(node: Node | null | undefined): string | null {
 export function identifier(node: Node | null | undefined): string | null {
   return node && ["identifier", "property_identifier", "private_property_identifier", "field_identifier", "type_identifier", "constant",
     "simple_identifier", "scope_resolution", "scoped_type_identifier", "qualified_identifier",
-    "shorthand_property_identifier", "shorthand_property_identifier_pattern"].includes(node.type)
+    "shorthand_property_identifier", "shorthand_property_identifier_pattern", "word"].includes(node.type)
     && unescaped(node.text) ? node.text : null;
 }
 export function declarationName(node: Node | null | undefined): string | null {
