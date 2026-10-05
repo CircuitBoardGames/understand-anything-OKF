@@ -35,6 +35,13 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # The vendored plugin (Agent-Skills) installs against understand-anything-plugin/pnpm-lock.yaml,
+      # not the repo-root lock the step above checks, so a core dependency added to only the root
+      # lock passes everything here and breaks the consumer's frozen install. --lockfile-only
+      # validates the lock against package.json without installing or building anything.
+      - name: Plugin lockfile covers packages/core
+        working-directory: understand-anything-plugin
+        run: pnpm install --frozen-lockfile --lockfile-only --ignore-scripts --filter './packages/core...'
       - name: Lint
         run: pnpm lint
       - name: Build core
