@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   ci:
+    # A draft never runs this: it runs once un-drafted.
+    if: ${{ !github.event.pull_request.draft }}
     name: lint, build, test
     runs-on: ubuntu-latest
     timeout-minutes: 30
