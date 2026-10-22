@@ -372,6 +372,24 @@ def is_test_path(path: str) -> bool:
     )
 
 
+def _is_test_node(path: str, node: dict[str, Any]) -> bool:
+    """Return True if a file node is a test, by path or by tagged evidence.
+
+    A JS/TS basename `test` or `test-*` (a node:test-free package's runner,
+    e.g. `test.mjs`, `test-crash.mjs`) counts only when the analyzer also
+    tagged the file `test`; the name alone could be a helper or fixture.
+    """
+    if is_test_path(path):
+        return True
+    stem, ext = os.path.splitext(_basename(path))
+    if ext.lower() not in _JS_TS_TEST_EXTS or not (
+        stem == "test" or stem.startswith("test-")
+    ):
+        return False
+    tags = node.get("tags")
+    return isinstance(tags, list) and "test" in tags
+
+
 def _strip_test_infix(stem: str) -> str | None:
     """For a JS/TS-family stem like `foo.test` or `foo.spec`, strip the
     trailing `.test` / `.spec`. Returns None if no infix is present."""
@@ -672,8 +690,8 @@ def link_tests(
     """
     # ── Index file nodes by relative path; classify each as test/production.
     # `is_prod` here means "is a known file node AND is not a test by
-    # path convention" — used both to validate edge endpoints and to drive
-    # path-convention candidate matching.
+    # path convention or tagged evidence" — used both to validate edge
+    # endpoints and to drive path-convention candidate matching.
     file_paths_to_nodes: dict[str, dict[str, Any]] = {}
     node_id_to_classification: dict[str, str] = {}  # id → "test" | "prod"
     test_nodes: list[tuple[str, dict[str, Any]]] = []
@@ -682,7 +700,7 @@ def link_tests(
         if path is None:
             continue
         file_paths_to_nodes[path] = node
-        if is_test_path(path):
+        if _is_test_node(path, node):
             node_id_to_classification[node["id"]] = "test"
             test_nodes.append((path, node))
         else:
@@ -772,7 +790,7 @@ def link_tests(
             prod_node = file_paths_to_nodes.get(cand_path)
             if prod_node is None:
                 continue
-            if is_test_path(cand_path):
+            if node_id_to_classification[prod_node["id"]] == "test":
                 # Don't link a test to another test even if naming aligns.
                 continue
             pair = (prod_node["id"], test_node["id"])

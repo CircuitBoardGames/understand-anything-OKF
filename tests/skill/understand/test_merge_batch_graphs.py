@@ -64,6 +64,18 @@ def _whole_file_node(node_type: str, path: str) -> dict[str, Any]:
     return _file_node(path, id=f"{node_type}:{path}", type=node_type)
 
 
+def _edge(source: str, target: str) -> dict[str, Any]:
+    """Build an LLM-emitted `tested_by` edge."""
+    return {
+        "source": source,
+        "target": target,
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5,
+        "description": "from LLM",
+    }
+
+
 class WholeFileImportIndexTests(unittest.TestCase):
     """Import recovery resolves every valid whole-file node type by path."""
 
@@ -1033,6 +1045,43 @@ class LinkTestsTests(unittest.TestCase):
 
                 self.assertEqual((added, dropped, tagged, swapped), (1, 0, 1, 0))
                 self.assertEqual(prod["tags"], ["tested"])
+
+    def test_tagged_bare_js_test_runner_keeps_llm_edge(self) -> None:
+        # A node:test-free package runs `test.mjs` / `test-*.mjs` against its
+        # server; the analyzer's `test` tag is the evidence the name lacks.
+        for test_path in ("mcp/lsp-server/test.mjs", "mcp/lsp-server/test-crash.mjs"):
+            for inverted in (False, True):
+                with self.subTest(test_path=test_path, inverted=inverted):
+                    prod = _file_node("mcp/lsp-server/server.mjs")
+                    test = _file_node(test_path, tags=["test", "integration-test"])
+                    nodes_by_id = {prod["id"]: prod, test["id"]: test}
+                    src, tgt = (test, prod) if inverted else (prod, test)
+                    edges = [_edge(src["id"], tgt["id"])]
+
+                    result = mbg.link_tests(nodes_by_id, edges)
+
+                    self.assertEqual(result, (0, 0, 1, 1 if inverted else 0))
+                    self.assertEqual(len(edges), 1)
+                    self.assertEqual(edges[0]["source"], prod["id"])
+                    self.assertEqual(edges[0]["target"], test["id"])
+
+    def test_bare_test_name_or_test_tag_alone_is_not_a_test(self) -> None:
+        # Name without the tag, or the tag without the name convention, stays
+        # production — so each edge here is prod↔prod and is dropped.
+        for helper in (
+            _file_node("mcp/lsp-server/test.mjs"),
+            _file_node("mcp/lsp-server/test-utils.mjs", tags=["utility"]),
+            _file_node("src/__tests__/helpers.ts", tags=["test"]),
+        ):
+            with self.subTest(path=helper["filePath"]):
+                prod = _file_node("mcp/lsp-server/server.mjs")
+                nodes_by_id = {prod["id"]: prod, helper["id"]: helper}
+                edges = [_edge(prod["id"], helper["id"])]
+
+                result = mbg.link_tests(nodes_by_id, edges)
+
+                self.assertEqual(result, (0, 1, 0, 0))
+                self.assertEqual(edges, [])
 
 
 # ── merge_and_normalize integration ───────────────────────────────────────
