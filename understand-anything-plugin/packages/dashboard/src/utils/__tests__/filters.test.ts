@@ -153,9 +153,16 @@ describe("filterNodes", () => {
     const selected = new Set<string>(layers.slice(0, 50).map((l) => l.id));
     const filters = defaultFilters({ layerIds: selected });
 
-    const t0 = performance.now();
+    // Best of 5 after a warm-up: one cold call times JIT compilation and whatever else the CI box is
+    // running (97ms on a loaded shared runner, 2026-11-09). Warm, the fixed path is ~2.5ms and the
+    // quadratic one ~250ms on that box, so 50ms still sits well between them.
     const out = filterNodes(nodes, idx, filters);
-    const elapsedMs = performance.now() - t0;
+    let elapsedMs = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const t0 = performance.now();
+      filterNodes(nodes, idx, filters);
+      elapsedMs = Math.min(elapsedMs, performance.now() - t0);
+    }
 
     expect(out.length).toBe(50 * 100);
     expect(elapsedMs).toBeLessThan(50);
