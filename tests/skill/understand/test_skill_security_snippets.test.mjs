@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,10 +10,16 @@ function readRepoFile(relPath) {
   return readFileSync(resolve(repoRoot, relPath), 'utf-8');
 }
 
+// /understand keeps the phases it does not always run in references/, read on demand.
+function understandSkillFiles() {
+  const dir = 'understand-anything-plugin/skills/understand';
+  return [`${dir}/SKILL.md`, ...readdirSync(resolve(repoRoot, dir, 'references')).sort().map(f => `${dir}/references/${f}`)];
+}
+
 describe('skill command hardening', () => {
   it('quotes PROJECT_ROOT in shell command snippets', () => {
     const files = [
-      'understand-anything-plugin/skills/understand/SKILL.md',
+      ...understandSkillFiles(),
       'understand-anything-plugin/hooks/auto-update-prompt.md',
     ];
 
@@ -70,7 +76,7 @@ describe('skill command hardening', () => {
   });
 
   it('marks project-controlled context as untrusted data', () => {
-    const understand = readRepoFile('understand-anything-plugin/skills/understand/SKILL.md');
+    const understand = understandSkillFiles().map(readRepoFile).join('\n');
     const knowledge = readRepoFile('understand-anything-plugin/skills/understand-knowledge/SKILL.md');
 
     expect(understand).not.toMatch(/README and manifest are authoritative/i);

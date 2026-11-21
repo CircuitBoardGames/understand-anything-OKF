@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const skill = readFileSync(
-  resolve(__dirname, '../../../understand-anything-plugin/skills/understand/SKILL.md'),
-  'utf-8',
-);
+// SKILL.md loads the phases it does not always run from references/, so the contract spans both.
+const skillDir = resolve(__dirname, '../../../understand-anything-plugin/skills/understand');
+const skill = ['SKILL.md', ...readdirSync(resolve(skillDir, 'references')).sort().map(f => `references/${f}`)]
+  .map(f => readFileSync(resolve(skillDir, f), 'utf-8'))
+  .join('\n');
 const hook = readFileSync(
   resolve(__dirname, '../../../understand-anything-plugin/hooks/auto-update-prompt.md'),
   'utf-8',
