@@ -195,7 +195,7 @@ Determine whether to run a full analysis or incremental update.
    | Existing graph + unchanged commit hash | Ask the user: "The graph is up to date at this commit. Would you like to: **(a)** run a full rebuild (`--full`), **(b)** run the LLM graph reviewer (`--review`), or **(c)** do nothing?" Then follow their choice. If they pick (c), STOP. |
    | Existing graph + changed files | Run deterministic incremental preparation below |
 
-   **Review-only path:** Copy the existing `knowledge-graph.json` to `$UA_DIR/intermediate/assembled-graph.json`, then jump directly to Phase 6 step 3.
+   **Review-only path:** Copy the existing `knowledge-graph.json` to `$UA_DIR/intermediate/assembled-graph.json`, then jump directly to Phase 6 step 3 (in `references/phase-6-review.md`).
 
    For incremental updates, do **not** construct the changed-file list by hand. Run the bundled reconciliation helper with the previous analyzed commit. Pass `--exclude "$EXCLUDE_PATTERNS"` only when the option is non-empty:
    ```bash
@@ -291,7 +291,7 @@ Read `references/phase-2-full.md` (beside this file) and run it in full.
 
 ### Incremental update path
 
-For `PARTIAL_UPDATE` and `ARCHITECTURE_UPDATE`, read `references/phase-2-incremental.md` (beside this file) and run it in full. It holds the symbol-preservation check and its one targeted repair.
+For `PARTIAL_UPDATE` and `ARCHITECTURE_UPDATE`, read `references/phase-2-incremental.md` (beside this file) and run it in full. It holds the symbol-preservation check and its one targeted repair. It reuses the full path's file-analyzer prompt template and its per-`batchIndex` output naming (the merge script drops files named any other way), so read those two parts of `references/phase-2-full.md` too.
 
 ---
 

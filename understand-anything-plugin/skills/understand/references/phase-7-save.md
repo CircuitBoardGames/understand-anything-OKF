@@ -21,7 +21,7 @@ Report to the user: `[Phase 7/7] Saving knowledge graph...`
    NODE
    ```
 
-   Then invoke the bundled script (located next to this SKILL.md):
+   Then invoke the bundled script (located next to SKILL.md (the skill directory)):
    ```bash
    node "<SKILL_DIR>/build-fingerprints.mjs" \
      "$UA_DIR/intermediate/fingerprint-input.json"

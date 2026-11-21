@@ -17,6 +17,16 @@ const analyzer = readFileSync(
   resolve(__dirname, '../../../understand-anything-plugin/agents/file-analyzer.md'), 'utf-8',
 );
 
+describe('references/ split', () => {
+  it('SKILL.md points at every reference file, and every pointer resolves', () => {
+    const main = readFileSync(resolve(skillDir, 'SKILL.md'), 'utf-8');
+    const named = new Set([...main.matchAll(/references\/([\w.-]+\.md)/g)].map(m => m[1]));
+    const present = new Set(readdirSync(resolve(skillDir, 'references')));
+    expect([...named].filter(f => !present.has(f))).toEqual([]);
+    expect([...present].filter(f => !named.has(f))).toEqual([]);
+  });
+});
+
 describe('incremental execution contract', () => {
   it.each([skill, hook])('routes inventory and baseline updates through bundled helpers', content => {
     expect(content).toContain('prepare-incremental.mjs');

@@ -42,7 +42,7 @@ Dispatch prompt template (fill in batch-specific values from `batches.json[i]`):
 
 After ALL batches complete, report to the user: `Phase 2 complete. All <totalBatches> batches analyzed.`
 
-Run the merge-and-normalize script bundled with this skill (located next to this SKILL.md file — use the skill directory path, not the project root):
+Run the merge-and-normalize script bundled with this skill (located next to SKILL.md (the skill directory) — use the skill directory path, not the project root):
 ```bash
 python "<SKILL_DIR>/merge-batch-graphs.py" "$PROJECT_ROOT"
 ```
